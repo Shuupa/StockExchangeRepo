@@ -24,6 +24,15 @@
     <ClInclude Include="StockExchange.hpp">
       <Filter>Исходные файлы</Filter>
     </ClInclude>
+    <ClInclude Include="Wallet.hpp">
+      <Filter>Исходные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="Portfolio.hpp">
+      <Filter>Исходные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="Trader.hpp">
+      <Filter>Исходные файлы</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Stock.cpp">
@@ -36,6 +45,15 @@
       <Filter>Исходные файлы</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Wallet.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Portfolio.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="Trader.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
