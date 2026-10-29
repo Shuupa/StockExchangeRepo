@@ -20,14 +20,20 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ForecastModel.hpp" />
+    <ClInclude Include="Portfolio.hpp" />
     <ClInclude Include="Stock.hpp" />
     <ClInclude Include="StockExchange.hpp" />
+    <ClInclude Include="Trader.hpp" />
+    <ClInclude Include="Wallet.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ForecastModel.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Portfolio.cpp" />
     <ClCompile Include="Stock.cpp" />
     <ClCompile Include="StockExchange.cpp" />
+    <ClCompile Include="Trader.cpp" />
+    <ClCompile Include="Wallet.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -59,9 +65,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
