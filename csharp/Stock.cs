@@ -2,34 +2,42 @@ using System;
 
 namespace StockExchangeCSharp;
 
-public sealed class Stock
+public class Stock : BaseAsset
 {
     public string Ticker { get; }
 
-    private double _price;
-    public double Price
-    {
-        get => _price;
-        private set
-        {
-            if (double.IsNaN(value) || double.IsInfinity(value) || value <= 0.0)
-                throw new ArgumentException("Stock price must be positive", nameof(value));
-            _price = value;
-        }
-    }
+    // 11. Статическое поле
+    private static int _count;
 
-    public Stock(string ticker, double price)
+    public Stock(string ticker, string title, double price) : base(title, price)
     {
-        if (string.IsNullOrWhiteSpace(ticker))
-            throw new ArgumentException("Ticker cannot be empty", nameof(ticker));
-
+        if (string.IsNullOrWhiteSpace(ticker)) throw new ArgumentException("Ticker cannot be empty");
         Ticker = ticker;
-        Price = price; 
-
-        Console.WriteLine($"Stock created: {Ticker}");
+        _count++;
+        Console.WriteLine($"Stock(): {Ticker}");
     }
 
-    public void SetPrice(double newPrice) => Price = newPrice;
+    // 5. Конструктор копирования
+    public Stock(Stock other) : base(other)
+    {
+        Ticker = other.Ticker;
+    }
 
-    public override string ToString() => $"Ticker: {Ticker}, price: {Price}";
+    // 11. Статический метод
+    public static int GetStockCount() => _count;
+
+    // 2. Реализация абстрактного метода
+    public override double GetDailyYield() => 2.0;
+
+    // 8. Переопределение с вызовом базового метода
+    public override string Describe() => base.Describe() + $" [Тикер: {Ticker}]";
+
+    // 10.2. Сравнение по содержимому (Equals и GetHashCode)
+    public override bool Equals(object? obj)
+    {
+        if (obj is not Stock other) return false;
+        return Ticker == other.Ticker;
+    }
+
+    public override int GetHashCode() => Ticker.GetHashCode();
 }
