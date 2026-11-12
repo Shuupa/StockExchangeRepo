@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 
 namespace StockExchangeCSharp;
 
-// Структура для демонстрации (пункт 4: для C# дополнительно показать struct)
 public struct Money
 {
     public int Rubles;
@@ -12,75 +10,58 @@ public struct Money
 
 public static class Program
 {
-    // Атрибут NoInlining гарантирует, что JIT-компилятор не "зашьет" этот метод в Main,
-    // и локальная переменная temp гарантированно умрет при выходе из метода.
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    static WeakReference<Stock> RunGarbageCollectorDemo()
-    {
-        Stock temp = new Stock("DELISTED", 1.0);
-        return new WeakReference<Stock>(temp);
-    }
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    static void CreateGarbageObject()
-    {
-        Stock temp = new Stock("DELISTED", 1.0);
-    }
     public static void Main()
     {
-        Console.OutputEncoding = System.Text.Encoding.UTF8; // для русских букв в консоли Windows
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        Console.WriteLine("ЛАБОРАТОРНАЯ 4: НАСЛЕДОВАНИЕ (C#)\n");
 
-        Console.WriteLine("\n1. Ссылки и копии (класс)");
-        Stock first = new Stock("AAPL", 230.0);
-        Stock second = first; // копируется ссылка, а не объект
-        second.SetPrice(250.0);
-        Console.WriteLine($"first:  {first}");
-        Console.WriteLine($"second: {second}");
-        Console.WriteLine($"first == second: {ReferenceEquals(first, second)}"); // true
+        // 1. Конструкторы и наследование
+        Console.WriteLine("1. Создание объектов");
+        Stock apple = new Stock("AAPL", "Apple Inc.", 230.0);
+        Bond bond = new Bond("US Treasury", 1000.0, 5.0);
+        Console.WriteLine($"Всего акций: {Stock.GetStockCount()}\n");
 
-        Console.WriteLine("\n2. Ссылки и копии (struct)");
-        var a = new Money { Rubles = 150, Kopeck = 50 };
-        var b = a; // копируется ЗНАЧЕНИЕ
-        b.Rubles = 300;
-        Console.WriteLine($"a.Rubles = {a.Rubles} (исходная структура не изменилась)");
-        Console.WriteLine($"b.Rubles = {b.Rubles}");
+        // 2. Полиморфизм
+        Console.WriteLine("2. Полиморфизм (BaseAsset)");
+        BaseAsset[] assets = { apple, bond };
+        foreach (var asset in assets)
+        {
+            Console.WriteLine(asset.Describe());
+        }
+        Console.WriteLine();
 
-        Console.WriteLine("\n3. Агрегация");
-        ForecastModel independentModel = new ForecastModel(first);
-        independentModel.PrintForecast(5.0);
+        // 3. Глубокое копирование
+        Console.WriteLine("3. Копирование");
+        Stock copy = new Stock(apple);
+        copy.SetPrice(350.0);
+        Console.WriteLine($"Оригинал: {apple.Price} (не изменился)");
+        Console.WriteLine($"Копия: {copy.Price}\n");
 
-        Console.WriteLine("\n4. Композиция и освобождение ресурса");
+        // 10.2. Equals и GetHashCode
+        Console.WriteLine("4. Сравнение по содержимому");
+        Stock twin = new Stock("AAPL", "Apple Inc.", 230.0);
+        Console.WriteLine($"apple == twin (по тикеру): {apple.Equals(twin)}");
+        Console.WriteLine($"Хэш-коды совпадают: {apple.GetHashCode() == twin.GetHashCode()}\n");
+
+        // 5. using var (IDisposable)
+        Console.WriteLine("5. using var (IDisposable)");
         using (var log = new ForecastLog("Абонемент"))
         {
-            log.Write("выдана книга «Война и мир»");
-            StockExchange exchange = new StockExchange("NYSE", first);
-            exchange.ShowForecast(-2.0);
-        } // здесь гарантированно вызван Dispose()
-        Console.WriteLine("После выхода из блока using ресурс освобожден.");
+            log.Write("выдана книга");
+        }
+        Console.WriteLine("Ресурс освобожден\n");
 
-        Console.WriteLine("\n5. Проверка правил");
-        try { first.SetPrice(-10.0); }
-        catch (ArgumentException e) { Console.WriteLine($"Ошибка цены: {e.Message}"); }
+        // 6. this и цепочка вызовов
+        Console.WriteLine("6. this: цепочка вызовов");
+        Stock chain = new Stock("SBER", "Sberbank", 300.0);
+        chain.SetPrice(310.0).SetPrice(320.0);
+        Console.WriteLine($"Цена после цепочки: {chain.Price}\n");
 
-        try { independentModel.PredictPrice(-100.0); }
-        catch (ArgumentException e) { Console.WriteLine($"Ошибка прогноза: {e.Message}"); }
-
-        Console.WriteLine("\n6. Сборщик мусора");
-
-        long memoryBefore = GC.GetTotalMemory(true);
-        Console.WriteLine($"Память до создания объекта: {memoryBefore} байт");
-
-        // Создаем объект, который сразу становится мусором
-        CreateGarbageObject();
-
-        long memoryAfterCreate = GC.GetTotalMemory(false);
-        Console.WriteLine($"Память после создания: {memoryAfterCreate} байт (объект еще жив)");
-
-        // Принудительная сборка
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
-        long memoryAfterCollect = GC.GetTotalMemory(true);
-        Console.WriteLine($"Память после сборки: {memoryAfterCollect} байт (объект уничтожен)");
+        // 7. Работа со строками
+        Console.WriteLine("7. Строки");
+        string title = "Apple Inc. (AAPL)";
+        Console.WriteLine($"Длина: {title.Length}");
+        Console.WriteLine($"Поиск 'Inc': {title.IndexOf("Inc")}");
+        Console.WriteLine($"Подстрока: {title.Substring(0, 5)}\n");
     }
 }
