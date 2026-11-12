@@ -1,49 +1,29 @@
 #include "Stock.hpp"
-
-#include <cmath>
 #include <iostream>
 #include <stdexcept>
 
+int Stock::m_count = 0; // Инициализация статического поля
+
+Stock::Stock(const std::string& ticker, const std::string& title, double price)
+    : BaseAsset(title, price), m_ticker(ticker)
+{
+    if (ticker.empty()) throw std::invalid_argument("Ticker cannot be empty");
+    m_count++;
+    std::cout << "Stock(): " << m_ticker << "\n";
+}
+
 Stock::Stock(const std::string& ticker, double price)
-    : ticker(ticker), price(price)
-{
-    if (ticker.empty()) {
-        throw std::invalid_argument("Ticker cannot be empty");
-    }
-
-    if (!std::isfinite(price) || price <= 0.0) {
-        throw std::invalid_argument("Stock price must be positive");
-    }
-
-    std::cout << "Stock created: " << this->ticker << '\n';
+    : Stock(ticker, ticker, price) {
 }
 
-Stock::~Stock()
-{
-    std::cout << "Stock destroyed: " << ticker << '\n';
+int Stock::GetStockCount() { return m_count; }
+
+double Stock::GetDailyYield() const { return 2.0; }
+
+std::string Stock::Describe() const {
+    return BaseAsset::Describe() + " [Тикер: " + m_ticker + "]";
 }
 
-std::string Stock::getTicker() const
-{
-    return ticker;
-}
-
-double Stock::getPrice() const
-{
-    return price;
-}
-
-void Stock::setPrice(double newPrice)
-{
-    if (!std::isfinite(newPrice) || newPrice <= 0.0) {
-        throw std::invalid_argument("Stock price must be positive");
-    }
-
-    price = newPrice;
-}
-
-void Stock::printInfo() const
-{
-    std::cout << "Ticker: " << ticker
-        << ", price: " << price << '\n';
+std::unique_ptr<BaseAsset> Stock::Clone() const {
+    return std::make_unique<Stock>(*this);
 }
