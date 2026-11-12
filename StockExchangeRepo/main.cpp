@@ -4,9 +4,10 @@
 #include "Wallet.hpp"
 #include "Portfolio.hpp"
 #include "Trader.hpp"
-
+#include <vector>
 #include <iostream>
 #include <stdexcept>
+#include <memory>
 
 // ---------------------------------------------------------------
 // PART 1. Shuupa's classes: Stock, ForecastModel, StockExchange
@@ -18,7 +19,7 @@ void runFriendPart()
     Stock apple("AAPL", 230.0);
 
     Stock& stockReference = apple;
-    Stock* stockPointer = &apple;
+    Stock* stockPointer = &apple; // наблюдатель, не владеет
 
     stockReference.printInfo();
     stockPointer->printInfo();
@@ -47,60 +48,86 @@ void runFriendPart()
         apple.setPrice(-10.0);
     }
     catch (const std::invalid_argument& error) {
-        std::cout << "Price validation error: "
-            << error.what() << '\n';
+        std::cout << "Price validation error: " << error.what() << '\n';
     }
 
     try {
         independentModel.printForecast(-100.0);
     }
     catch (const std::invalid_argument& error) {
-        std::cout << "Forecast validation error: "
-            << error.what() << '\n';
+        std::cout << "Forecast validation error: " << error.what() << '\n';
     }
 
-    std::cout << "\n=== 5. Dynamic object: new and delete ===\n";
+    std::cout << "\n=== 5. unique_ptr: dynamic object, ownership transfer ===\n";
 
-    Stock* dynamicStock = new Stock("TSLA", 250.0);
-    dynamicStock->printInfo();
+    {
+        auto dynamicStock = std::make_unique<Stock>("TSLA", 250.0);
+        dynamicStock->printInfo();
+        // здесь dynamicStock уничтожится автоматически
+    }
+    std::cout << "TSLA destroyed (unique_ptr out of scope)\n";
 
-    delete dynamicStock;
-    dynamicStock = nullptr;
+    auto novelty = std::make_unique<Stock>("NVDA", 135.0);
+    StockExchange* dummyExchange = nullptr; // просто для примера
+    // передача владения (демонстрация std::move)
+    auto anotherOwner = std::move(novelty);
+    if (!novelty) {
+        std::cout << "Original pointer is empty after move\n";
+    }
+    anotherOwner->printInfo();
+    // anotherOwner уничтожится в конце функции
 
-    std::cout << "\n=== 6. Dynamic array of objects ===\n";
+    std::cout << "\n=== 6. Dynamic array of objects (vector) ===\n";
 
-    Stock* stockArray = new Stock[2]{
-        { "MSFT", 420.0 },
-        { "NVDA", 135.0 }
-    };
+    std::vector<std::unique_ptr<Stock>> stockArray;
+    stockArray.push_back(std::make_unique<Stock>("MSFT", 420.0));
+    stockArray.push_back(std::make_unique<Stock>("NVDA", 135.0));
+
+    for (const auto& s : stockArray) {
+        s->printInfo();
+    }
+    // Автоматически очистится
+
+    std::cout << "\n=== 7. unique_ptr: array of dynamic objects ===\n";
+
+    std::unique_ptr<Stock> shelf[2];
+    shelf[0] = std::make_unique<Stock>("AMZN", 190.0);
+    shelf[1] = std::make_unique<Stock>("GOOGL", 175.0);
 
     for (int i = 0; i < 2; ++i) {
-        stockArray[i].printInfo();
+        shelf[i]->printInfo();
+    }
+    // автоматически уничтожатся
+
+    std::cout << "\n=== 8. shared_ptr: multiple owners ===\n";
+
+    auto first = std::make_shared<Stock>("SBER", 300.0);
+    std::cout << "use_count: " << first.use_count() << '\n'; // 1
+    {
+        auto second = first; // копия
+        std::cout << "use_count after copy: " << first.use_count() << '\n'; // 2
+    }
+    std::cout << "use_count after scope: " << first.use_count() << '\n'; // 1
+
+    std::cout << "\n=== 9. weak_ptr: observer ===\n";
+
+    std::weak_ptr<Stock> weakWatcher = first;
+    std::cout << "weak expired? " << weakWatcher.expired() << '\n'; // 0 (false)
+    if (auto locked = weakWatcher.lock()) {
+        std::cout << "Still alive: ";
+        locked->printInfo();
+    }
+    first.reset(); // уничтожаем последнего владельца
+    std::cout << "After reset, weak expired? " << weakWatcher.expired() << '\n'; // 1 (true)
+    if (auto locked = weakWatcher.lock()) {
+        std::cout << "Still alive: ";
+        locked->printInfo();
+    }
+    else {
+        std::cout << "Object is destroyed\n";
     }
 
-    delete[] stockArray;
-    stockArray = nullptr;
-
-    std::cout << "\n=== 7. Array of dynamic objects ===\n";
-
-    Stock** stockPointers = new Stock * [2];
-
-    stockPointers[0] = new Stock("AMZN", 190.0);
-    stockPointers[1] = new Stock("GOOGL", 175.0);
-
-    for (int i = 0; i < 2; ++i) {
-        stockPointers[i]->printInfo();
-    }
-
-    for (int i = 0; i < 2; ++i) {
-        delete stockPointers[i];
-        stockPointers[i] = nullptr;
-    }
-
-    delete[] stockPointers;
-    stockPointers = nullptr;
-
-    std::cout << "\n=== End of part 1 (remaining objects are destroyed below) ===\n";
+    std::cout << "\n=== End of part 1 ===\n";
 }
 
 // ---------------------------------------------------------------
@@ -108,7 +135,7 @@ void runFriendPart()
 // ---------------------------------------------------------------
 void runMyPart()
 {
-    std::cout << "=== 1. Ordinary object, reference and pointer ===\n";
+    std::cout << "1. Ordinary object, reference and pointer\n";
 
     Wallet wallet(500.0);
 
@@ -119,7 +146,7 @@ void runMyPart()
     walletPointer->deposit(100.0);
     walletPointer->printInfo();
 
-    std::cout << "\n=== 2. Stock and forecast (Shuupa's classes) ===\n";
+    std::cout << "\n2. Stock and forecast (Shuupa's classes)\n";
 
     Stock microsoft("MSFT", 400.0);
     ForecastModel model(microsoft);
@@ -127,7 +154,7 @@ void runMyPart()
     const double forecast = model.predictPrice(10.0);
     model.printForecast(10.0);
 
-    std::cout << "\n=== 3. Composition: Portfolio owns Wallet ===\n";
+    std::cout << "\n3. Composition: Portfolio owns Wallet\n";
 
     {
         Portfolio temporaryPortfolio("Temporary", 1000.0);
@@ -137,7 +164,7 @@ void runMyPart()
         std::cout << "Leaving portfolio scope...\n";
     }
 
-    std::cout << "\n=== 4. Aggregation: Trader uses Portfolio ===\n";
+    std::cout << "\n4. Aggregation: Trader uses Portfolio\n";
 
     Portfolio mainPortfolio("Main", 2000.0);
 
@@ -155,84 +182,72 @@ void runMyPart()
     std::cout << "Portfolio still exists after trader destruction:\n";
     mainPortfolio.printInfo();
 
-    std::cout << "\n=== 5. Validation rules ===\n";
+    std::cout << "\n5. Validation rules\n";
 
     try {
         mainPortfolio.buyStock(microsoft, 1000);
     }
     catch (const std::invalid_argument& error) {
-        std::cout << "Buy validation error: "
-            << error.what() << '\n';
+        std::cout << "Buy validation error: " << error.what() << '\n';
     }
 
     try {
         mainPortfolio.sellStock(microsoft, 50);
     }
     catch (const std::invalid_argument& error) {
-        std::cout << "Sell validation error: "
-            << error.what() << '\n';
+        std::cout << "Sell validation error: " << error.what() << '\n';
     }
 
     try {
         wallet.withdraw(10000.0);
     }
     catch (const std::invalid_argument& error) {
-        std::cout << "Wallet validation error: "
-            << error.what() << '\n';
+        std::cout << "Wallet validation error: " << error.what() << '\n';
     }
 
-    std::cout << "\n=== 6. Dynamic object: new and delete ===\n";
+    std::cout << "\n6. unique_ptr: dynamic object\n";
 
-    Wallet* dynamicWallet = new Wallet(250.0);
-    dynamicWallet->printInfo();
+    {
+        auto dynamicWallet = std::make_unique<Wallet>(250.0);
+        dynamicWallet->printInfo();
+    }
+    std::cout << "Wallet destroyed (unique_ptr out of scope)\n";
 
-    delete dynamicWallet;
-    dynamicWallet = nullptr;
+    std::cout << "\n7. unique_ptr: dynamic array\n";
 
-    std::cout << "\n=== 7. Dynamic array of objects ===\n";
-
-    Wallet* walletArray = new Wallet[2];
-
+    // Wallet имеет конструктор по умолчанию? Если нет, используем vector
+    // Предположим, что есть.
+    auto walletArray = std::make_unique<Wallet[]>(2);
     walletArray[0].deposit(10.0);
     walletArray[1].deposit(20.0);
 
     for (int i = 0; i < 2; ++i) {
         walletArray[i].printInfo();
     }
+    // автоматически уничтожится
 
-    delete[] walletArray;
-    walletArray = nullptr;
+    std::cout << "\n8. unique_ptr: array of dynamic objects\n";
 
-    std::cout << "\n=== 8. Array of dynamic objects ===\n";
-
-    Wallet** walletPointers = new Wallet * [2];
-
-    walletPointers[0] = new Wallet(100.0);
-    walletPointers[1] = new Wallet(200.0);
+    std::unique_ptr<Wallet> walletShelf[2];
+    walletShelf[0] = std::make_unique<Wallet>(100.0);
+    walletShelf[1] = std::make_unique<Wallet>(200.0);
 
     for (int i = 0; i < 2; ++i) {
-        walletPointers[i]->printInfo();
+        walletShelf[i]->printInfo();
     }
+    // автоматически уничтожатся
 
-    for (int i = 0; i < 2; ++i) {
-        delete walletPointers[i];
-        walletPointers[i] = nullptr;
-    }
-
-    delete[] walletPointers;
-    walletPointers = nullptr;
-
-    std::cout << "\n=== End of part 2 (remaining objects are destroyed below) ===\n";
+    std::cout << "\nEnd of part 2\n";
 }
 
 int main()
 {
-    std::cout << "################ PART 1: Shuupa's classes ################\n"
+    std::cout << "PART 1: Shuupa's classes\n"
         << "(Stock, ForecastModel, StockExchange)\n\n";
 
     runFriendPart();
 
-    std::cout << "\n################ PART 2: my classes ################\n"
+    std::cout << "\nPART 2: my classes\n"
         << "(Wallet, Portfolio, Trader)\n\n";
 
     runMyPart();
