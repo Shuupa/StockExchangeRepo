@@ -133,20 +133,32 @@ void runFriendPart()
 // ---------------------------------------------------------------
 // PART 2. My classes: Wallet, Portfolio, Trader
 // ---------------------------------------------------------------
+
+// —сылка как параметр функции: функци€ кошельком не владеет и ссылку нигде не сохран€ет.
+void topUp(Wallet& target, double amount)
+{
+    target.deposit(amount);
+    target.printInfo();
+}
+
 void runMyPart()
 {
-    std::cout << "1. Ordinary object, reference and pointer\n";
+    std::cout << "=== 1. Object, reference and observer ===\n";
 
-    Wallet wallet(500.0);
+    auto wallet = std::make_shared<Wallet>(500.0);
 
-    Wallet& walletReference = wallet;
-    Wallet* walletPointer = &wallet;
+    // бывший Wallet* walletPointer: только наблюдает, кошельком не владеет
+    std::weak_ptr<Wallet> walletObserver = wallet;
 
-    walletReference.printInfo();
-    walletPointer->deposit(100.0);
-    walletPointer->printInfo();
+    // бывший Wallet& walletReference: теперь параметр функции
+    topUp(*wallet, 100.0);
 
-    std::cout << "\n2. Stock and forecast (Shuupa's classes)\n";
+    if (auto locked = walletObserver.lock()) {
+        std::cout << "Observer sees the wallet: ";
+        locked->printInfo();
+    }
+
+    std::cout << "\n=== 2. Stock and forecast (Shuupa's classes) ===\n";
 
     Stock microsoft("MSFT", 400.0);
     ForecastModel model(microsoft);
@@ -154,7 +166,7 @@ void runMyPart()
     const double forecast = model.predictPrice(10.0);
     model.printForecast(10.0);
 
-    std::cout << "\n3. Composition: Portfolio owns Wallet\n";
+    std::cout << "\n=== 3. Composition: Portfolio owns Wallet ===\n";
 
     {
         Portfolio temporaryPortfolio("Temporary", 1000.0);
@@ -164,12 +176,15 @@ void runMyPart()
         std::cout << "Leaving portfolio scope...\n";
     }
 
-    std::cout << "\n4. Aggregation: Trader uses Portfolio\n";
+    std::cout << "\n=== 4. Aggregation: Trader uses Portfolio (shared_ptr) ===\n";
 
-    Portfolio mainPortfolio("Main", 2000.0);
+    auto mainPortfolio = std::make_shared<Portfolio>("Main", 2000.0);
+    std::cout << "Portfolio owners: " << mainPortfolio.use_count() << '\n'; // 1
 
     {
-        Trader trader("Alex", mainPortfolio);
+        Trader trader("Alex", mainPortfolio); // трейдер копирует shared_ptr
+        std::cout << "Portfolio owners with trader: "
+            << mainPortfolio.use_count() << '\n'; // 2
         trader.printInfo();
 
         trader.buyIfGrowth(microsoft, forecast, 3);
@@ -179,65 +194,122 @@ void runMyPart()
         std::cout << "Leaving trader scope...\n";
     }
 
+    std::cout << "Portfolio owners after trader destruction: "
+        << mainPortfolio.use_count() << '\n'; // 1
     std::cout << "Portfolio still exists after trader destruction:\n";
-    mainPortfolio.printInfo();
+    mainPortfolio->printInfo();
 
-    std::cout << "\n5. Validation rules\n";
+    std::cout << "\n=== 5. Validation rules ===\n";
 
     try {
-        mainPortfolio.buyStock(microsoft, 1000);
+        mainPortfolio->buyStock(microsoft, 1000);
     }
     catch (const std::invalid_argument& error) {
         std::cout << "Buy validation error: " << error.what() << '\n';
     }
 
     try {
-        mainPortfolio.sellStock(microsoft, 50);
+        mainPortfolio->sellStock(microsoft, 50);
     }
     catch (const std::invalid_argument& error) {
         std::cout << "Sell validation error: " << error.what() << '\n';
     }
 
     try {
-        wallet.withdraw(10000.0);
+        wallet->withdraw(10000.0);
     }
     catch (const std::invalid_argument& error) {
         std::cout << "Wallet validation error: " << error.what() << '\n';
     }
 
-    std::cout << "\n6. unique_ptr: dynamic object\n";
+    try {
+        Trader brokenTrader("Nobody", nullptr);
+    }
+    catch (const std::invalid_argument& error) {
+        std::cout << "Trader validation error: " << error.what() << '\n';
+    }
+
+    std::cout << "\n=== 6. unique_ptr: dynamic object, ownership transfer ===\n";
 
     {
         auto dynamicWallet = std::make_unique<Wallet>(250.0);
         dynamicWallet->printInfo();
+
+        std::cout << "Leaving block...\n";
+        // dynamicWallet уничтожитс€ сам, delete не нужен
     }
-    std::cout << "Wallet destroyed (unique_ptr out of scope)\n";
+    std::cout << "Wallet destroyed on leaving the block\n";
 
-    std::cout << "\n7. unique_ptr: dynamic array\n";
-
-    // Wallet имеет конструктор по умолчанию? ≈сли нет, используем vector
-    // ѕредположим, что есть.
-    auto walletArray = std::make_unique<Wallet[]>(2);
-    walletArray[0].deposit(10.0);
-    walletArray[1].deposit(20.0);
-
-    for (int i = 0; i < 2; ++i) {
-        walletArray[i].printInfo();
+    auto firstOwner = std::make_unique<Wallet>(300.0);
+    auto secondOwner = std::move(firstOwner); // владение передано
+    if (!firstOwner) {
+        std::cout << "firstOwner is empty after std::move\n";
     }
-    // автоматически уничтожитс€
+    secondOwner->printInfo();
+    secondOwner.reset(); // последний (единственный) владелец уходит
+    std::cout << "Wallet destroyed after reset\n";
 
-    std::cout << "\n8. unique_ptr: array of dynamic objects\n";
+    std::cout << "\n=== 7. unique_ptr: dynamic array ===\n";
 
-    std::unique_ptr<Wallet> walletShelf[2];
-    walletShelf[0] = std::make_unique<Wallet>(100.0);
-    walletShelf[1] = std::make_unique<Wallet>(200.0);
+    {
+        auto walletArray = std::make_unique<Wallet[]>(2);
 
-    for (int i = 0; i < 2; ++i) {
-        walletShelf[i]->printInfo();
+        walletArray[0].deposit(10.0);
+        walletArray[1].deposit(20.0);
+
+        for (int i = 0; i < 2; ++i) {
+            walletArray[i].printInfo();
+        }
+
+        std::cout << "Leaving block...\n";
     }
-    // автоматически уничтожатс€
 
-    std::cout << "\nEnd of part 2\n";
+    std::cout << "\n=== 8. unique_ptr: array of dynamic objects ===\n";
+
+    {
+        std::unique_ptr<Wallet> walletShelf[2];
+        walletShelf[0] = std::make_unique<Wallet>(100.0);
+        walletShelf[1] = std::make_unique<Wallet>(200.0);
+
+        for (int i = 0; i < 2; ++i) {
+            walletShelf[i]->printInfo();
+        }
+
+        std::cout << "Leaving block...\n";
+    }
+
+    std::cout << "\n=== 9. shared_ptr: several owners ===\n";
+
+    auto sharedPortfolio = std::make_shared<Portfolio>("Shared", 1500.0);
+    std::cout << "use_count: " << sharedPortfolio.use_count() << '\n'; // 1
+    {
+        auto portfolioCopy = sharedPortfolio; // копи€: владельцев 2
+        std::cout << "use_count after copy: "
+            << sharedPortfolio.use_count() << '\n'; // 2
+    }
+    std::cout << "use_count after scope: "
+        << sharedPortfolio.use_count() << '\n'; // 1
+
+    std::cout << "\n=== 10. weak_ptr: observer ===\n";
+
+    std::weak_ptr<Portfolio> portfolioObserver = sharedPortfolio;
+    std::cout << "weak expired? " << portfolioObserver.expired() << '\n'; // 0
+    if (auto locked = portfolioObserver.lock()) {
+        std::cout << "Still alive:\n";
+        locked->printInfo();
+    }
+
+    sharedPortfolio.reset(); // последний владелец уходит, Portfolio уничтожаетс€
+    std::cout << "After reset, weak expired? "
+        << portfolioObserver.expired() << '\n'; // 1
+    if (auto locked = portfolioObserver.lock()) {
+        std::cout << "Still alive\n";
+    }
+    else {
+        std::cout << "Object is destroyed\n";
+    }
+
+    std::cout << "\nEnd of part 2 (remaining objects are destroyed below)\n";
 }
 
 int main()

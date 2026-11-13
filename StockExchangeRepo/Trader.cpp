@@ -3,12 +3,17 @@
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
+#include <utility>
 
-Trader::Trader(const std::string& name, Portfolio& portfolio)
-    : name(name), portfolio(portfolio)
+Trader::Trader(const std::string& name, std::shared_ptr<Portfolio> portfolio)
+    : name(name), portfolio(std::move(portfolio))
 {
     if (name.empty()) {
         throw std::invalid_argument("Trader name cannot be empty");
+    }
+
+    if (!this->portfolio) {
+        throw std::invalid_argument("Trader needs a portfolio");
     }
 
     std::cout << "Trader created: " << this->name << '\n';
@@ -28,7 +33,7 @@ void Trader::buyIfGrowth(const Stock& stock, double forecastPrice, int quantity)
     if (forecastPrice > stock.getPrice()) {
         std::cout << name << ": growth expected for "
             << stock.getTicker() << ", buying\n";
-        portfolio.buyStock(stock, quantity);
+        portfolio->buyStock(stock, quantity);
     }
     else {
         std::cout << name << ": no growth expected for "
@@ -45,7 +50,7 @@ void Trader::sellIfDrop(const Stock& stock, double forecastPrice, int quantity)
     if (forecastPrice < stock.getPrice()) {
         std::cout << name << ": drop expected for "
             << stock.getTicker() << ", selling\n";
-        portfolio.sellStock(stock, quantity);
+        portfolio->sellStock(stock, quantity);
     }
     else {
         std::cout << name << ": no drop expected for "
